@@ -3,12 +3,13 @@ import time
 import socket
 import threading
 import sys
+import struct
 
 
 class Client:
     server_address = "127.0.0.1"
     camera_feed_port = 6000
-    camera_buffer_size = 921600
+    camera_feed_buffer_size = 1024*2048
     camera_resolution = (640, 480)
     window = None
     current_camera_still = None
@@ -25,7 +26,8 @@ class Client:
         camera_thread.start()
 
         # Create initial interface.
-        self.window = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+        display_info = pygame.display.Info()
+        self.window = pygame.display.set_mode((display_info.current_w, display_info.current_h), pygame.FULLSCREEN)
         pygame.display.set_caption("Turret Command Centre")
 
         while True:
@@ -41,7 +43,8 @@ class Client:
         if self.current_camera_still is not None:
             self.window.blit(self.current_camera_still, (0, 0))
 
-        pygame.display.flip()
+        pygame.display.update()
+        time.sleep(0.05)
 
     def setup_camera_feed(self):
         while not self.force_thread_quit:
@@ -52,19 +55,21 @@ class Client:
                 print("Connection successful. Receiving camera data...")
                 while not self.force_thread_quit:
                     data = bytes()
+                    packet_length = struct.unpack("I", camera_feed_socket.recv(4))[0]
 
-                    while not self.force_thread_quit:
-                        buffer = camera_feed_socket.recv(1024)
-                        data += buffer
-                        if len(buffer) == 0:
-                            print(data)
-                            break
+                    while not self.force_thread_quit and len(data) < packet_length:
+                        buffer_length = self.camera_feed_buffer_size
+                        diff = packet_length - len(data)
+                        if diff < self.camera_feed_buffer_size:
+                            buffer_length = diff
+                        data += camera_feed_socket.recv(buffer_length)
 
                     try:
-                        pass
-                        #self.current_camera_still = pygame.image.fromstring(data, self.camera_resolution, "RGB")
+                        display_info = pygame.display.Info()
+                        image = pygame.image.fromstring(data, self.camera_resolution, "RGB")
+                        image = pygame.transform.scale(image, (display_info.current_w, display_info.current_h))
+                        self.current_camera_still = image
                     except ValueError:
-                        raise
                         print("Error: Camera snapshot data was corrupt or incomplete.")
             except (ConnectionResetError, ConnectionRefusedError, ConnectionAbortedError):
                 print("Error: The connection was refused or reset.")
