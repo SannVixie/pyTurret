@@ -44,7 +44,7 @@ class Client:
             self.window.blit(self.current_camera_still, (0, 0))
 
         pygame.display.update()
-        time.sleep(0.05)
+        time.sleep(0.016)
 
     def setup_camera_feed(self):
         while not self.force_thread_quit:
