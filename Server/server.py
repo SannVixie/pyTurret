@@ -1,8 +1,8 @@
 import pygame.camera
 import pygame
 import socket
-import time
 import struct
+import time
 
 
 class Server:
@@ -40,15 +40,21 @@ class Server:
     def send_camera_feed(self, connection):
         self.camera.start()
         while True:
-            data = pygame.image.tostring(self.camera.get_image(), "RGB")
-            packet_length = struct.pack("I", len(data))
+            image = self.camera.get_image()
+            packet_data = pygame.image.tostring(image, "RGB")
+            packet_length = struct.pack("I", len(packet_data))
+            camera_width = struct.pack("I", image.get_width())
+            camera_height = struct.pack("I", image.get_height())
             try:
                 connection.send(packet_length)
-                connection.send(data)
+                connection.send(camera_width)
+                connection.send(camera_height)
+                connection.send(packet_data)
             except (ConnectionResetError, ConnectionAbortedError):
                 print("Error: Connection has been reset or aborted.")
                 self.camera.stop()
                 break
+            time.sleep(0.032)
 
 
 if __name__ == "__main__":

@@ -10,7 +10,6 @@ class Client:
     server_address = "127.0.0.1"
     camera_feed_port = 6000
     camera_feed_buffer_size = 1024*2048
-    camera_resolution = (640, 480)
     window = None
     current_camera_still = None
     force_thread_quit = False
@@ -44,7 +43,7 @@ class Client:
             self.window.blit(self.current_camera_still, (0, 0))
 
         pygame.display.update()
-        time.sleep(0.016)
+        time.sleep(0.032)
 
     def setup_camera_feed(self):
         while not self.force_thread_quit:
@@ -56,6 +55,8 @@ class Client:
                 while not self.force_thread_quit:
                     data = bytes()
                     packet_length = struct.unpack("I", camera_feed_socket.recv(4))[0]
+                    camera_width = struct.unpack("I", camera_feed_socket.recv(4))[0]
+                    camera_height = struct.unpack("I", camera_feed_socket.recv(4))[0]
 
                     while not self.force_thread_quit and len(data) < packet_length:
                         buffer_length = self.camera_feed_buffer_size
@@ -66,11 +67,13 @@ class Client:
 
                     try:
                         display_info = pygame.display.Info()
-                        image = pygame.image.fromstring(data, self.camera_resolution, "RGB")
+                        image = pygame.image.fromstring(data, (camera_width, camera_height), "RGB")
                         image = pygame.transform.scale(image, (display_info.current_w, display_info.current_h))
                         self.current_camera_still = image
                     except ValueError:
                         print("Error: Camera snapshot data was corrupt or incomplete.")
+                    except pygame.error:
+                        print("Screen object not available.")
             except (ConnectionResetError, ConnectionRefusedError, ConnectionAbortedError):
                 print("Error: The connection was refused or reset.")
                 time.sleep(1)
