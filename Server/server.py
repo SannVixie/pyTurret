@@ -3,7 +3,7 @@ import pygame
 import socket
 import struct
 import time
-
+import pickle
 
 class Server:
     camera = None
